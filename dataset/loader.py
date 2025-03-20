@@ -11,8 +11,8 @@ from albumentations import (
     ShiftScaleRotate,
     HueSaturationValue,
     GaussNoise,
-    IAASharpen,
-    IAAEmboss,
+    Sharpen,
+    Emboss,
     RandomBrightnessContrast,
     OneOf,
     Compose,
@@ -38,8 +38,8 @@ def strong_aug(p=0.5):
             OneOf(
                 [
                     CLAHE(clip_limit=2),
-                    IAASharpen(),
-                    IAAEmboss(),
+                    Sharpen(),
+                    Emboss(),
                     RandomBrightnessContrast(),
                 ],
                 p=0.2,
