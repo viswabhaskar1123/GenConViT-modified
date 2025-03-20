@@ -138,6 +138,7 @@ from model.config import load_config
 from model.genconvit_v2 import GenConViTV2  # Updated model import
 from dataset.loader import load_data, load_checkpoint
 import optparse
+from ranger import Ranger
 
 config = load_config()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -164,7 +165,7 @@ def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model
 
     # Improved optimizer with Lookahead and Ranger
     base_optimizer = optim.AdamW(model.parameters(), lr=2e-4, weight_decay=1e-4)
-    optimizer = optim.Ranger(base_optimizer, k=5, alpha=0.5)
+    optimizer = Ranger(base_optimizer, k=5, alpha=0.5)
 
     criterion = nn.CrossEntropyLoss()
     focal_loss = nn.CrossEntropyLoss(weight=torch.tensor([0.75, 1.25]).to(device))
