@@ -10,6 +10,7 @@ class GenConViT(nn.Module):
         super(GenConViT, self).__init__()
         self.net = net
         self.fp16 = fp16
+        print("net"+self.net)
         if self.net=='ed':
             try:
                 self.model_ed = GenConViTED(config)
@@ -31,9 +32,9 @@ class GenConViT(nn.Module):
                 self.checkpoint_vae = torch.load(f'weight/{vae}.pth', map_location=torch.device('cpu'))
 
                 if 'state_dict' in self.checkpoint_vae:
-                    self.model_vae.load_state_dict(self.checkpoint_vae['state_dict'])
+                    self.model_vae.load_state_dict(self.checkpoint_vae['state_dict'],strict=False)
                 else:
-                    self.model_vae.load_state_dict(self.checkpoint_vae)
+                    self.model_vae.load_state_dict(self.checkpoint_vae,strict=False)
                     
                 self.model_vae.eval()
                 if self.fp16:

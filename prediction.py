@@ -10,7 +10,7 @@ config = load_config()
 print('CONFIG')
 print(config)
 def vids(
-    ed_weight, vae_weight, root_dir="sample_prediction_data", dataset=None, num_frames=15, net=None, fp16=False
+    ed_weight, vae_weight, root_dir="sample_prediction_data", dataset=None, num_frames=15, net="vae", fp16=False
 ):
     result = set_result()
     r = 0
@@ -293,7 +293,7 @@ def gen_parser():
     dataset = args.d if args.d else "other"
     fp16 = True if args.fp16 else False
 
-    net = 'genconvit'
+    net = 'vae'
     ed_weight = 'genconvit_ed_inference'
     vae_weight = 'genconvit_vae_inference'
 

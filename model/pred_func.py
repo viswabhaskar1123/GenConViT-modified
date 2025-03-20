@@ -2,7 +2,7 @@ import os
 import numpy as np
 import cv2
 import torch
-import dlib
+# import dlib
 import face_recognition
 from torchvision import transforms
 from tqdm import tqdm
@@ -34,8 +34,8 @@ def load_genconvit(config, net, ed_weight, vae_weight, fp16):
 def face_rec(frames, p=None, klass=None):
     temp_face = np.zeros((len(frames), 224, 224, 3), dtype=np.uint8)
     count = 0
-    mod = "cnn" if dlib.DLIB_USE_CUDA else "hog"
-
+    # mod = "cnn" if dlib.DLIB_USE_CUDA else "hog"
+    mod = "hog"
     for _, frame in tqdm(enumerate(frames), total=len(frames)):
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         face_locations = face_recognition.face_locations(
