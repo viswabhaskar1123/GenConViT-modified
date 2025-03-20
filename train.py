@@ -161,17 +161,16 @@ def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model
     dataloaders, dataset_sizes = load_data(dir_path, batch_size)
     print("Done.")
 
-    model = GenConViTV2(config).to(device)  # Use updated model
+    model = GenConViTV2(config).to(device)  # Use the updated model
 
-    # Improved optimizer with Lookahead and Ranger
-    base_optimizer = optim.AdamW(model.parameters(), lr=2e-4, weight_decay=1e-4)
-    optimizer = Ranger(base_optimizer, k=5, alpha=0.5)
+    # ✅ Use AdamW optimizer instead of Ranger
+    optimizer = optim.AdamW(model.parameters(), lr=2e-4, weight_decay=1e-4)
 
     criterion = nn.CrossEntropyLoss()
-    focal_loss = nn.CrossEntropyLoss(weight=torch.tensor([0.75, 1.25]).to(device))
-
     mse = nn.MSELoss()
     min_val_loss = int(config["min_val_loss"])
+
+    # Learning rate scheduler
     scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
     if pretrained_model_filename:
@@ -194,12 +193,14 @@ def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model
 
             # MixUp Augmentation
             lam = np.random.beta(0.4, 0.4)
-            inputs, targets_a, targets_b = inputs, labels, labels[torch.randperm(labels.size(0))]
+            targets_a, targets_b = labels, labels[torch.randperm(labels.size(0))]
 
             optimizer.zero_grad()
             outputs = model(inputs)
+            
+            # MixUp loss
             loss = lam * criterion(outputs, targets_a) + (1 - lam) * criterion(outputs, targets_b)
-
+            
             loss.backward()
             optimizer.step()
 
