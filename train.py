@@ -138,7 +138,6 @@ from model.config import load_config
 from model.genconvit_v2 import GenConViTV2  # Updated model import
 from dataset.loader import load_data, load_checkpoint
 import optparse
-from ranger import Ranger
 
 config = load_config()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
