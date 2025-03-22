@@ -155,22 +155,29 @@ def load_pretrained(pretrained_model_filename):
     return model, optimizer, start_epoch, min_loss
 
 
+
+# Mixed precision scaler
+scaler = torch.cuda.amp.GradScaler()
+
 def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model, batch_size):
     print("Loading data...")
     dataloaders, dataset_sizes = load_data(dir_path, batch_size)
     print("Done.")
 
-    model = GenConViTV2(config).to(device)  # Use the updated model
+    model = GenConViTV2(config).to(device)  # Use updated model
 
-    # ✅ Use AdamW optimizer instead of Ranger
-    optimizer = optim.AdamW(model.parameters(), lr=2e-4, weight_decay=1e-4)
+    # Improved optimizer with Lookahead and Ranger
+    base_optimizer = optim.AdamW(model.parameters(), lr=2e-4, weight_decay=1e-4)
+    optimizer = optim.Ranger(base_optimizer, k=5, alpha=0.5)
 
     criterion = nn.CrossEntropyLoss()
+    focal_loss = nn.CrossEntropyLoss(weight=torch.tensor([0.75, 1.25]).to(device))
+
     mse = nn.MSELoss()
     min_val_loss = int(config["min_val_loss"])
-
-    # Learning rate scheduler
     scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+
+    criterion = nn.CrossEntropyLoss()
 
     if pretrained_model_filename:
         model, optimizer, start_epoch, min_loss = load_pretrained(pretrained_model_filename)
@@ -183,6 +190,8 @@ def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model
     since = time.time()
 
     for epoch in range(0, num_epochs):
+        print(f"Epoch {epoch + 1}/{num_epochs}")
+
         # Train phase
         model.train()
         running_loss, running_corrects = 0.0, 0
@@ -192,14 +201,12 @@ def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model
 
             # MixUp Augmentation
             lam = np.random.beta(0.4, 0.4)
-            targets_a, targets_b = labels, labels[torch.randperm(labels.size(0))]
+            inputs, targets_a, targets_b = inputs, labels, labels[torch.randperm(labels.size(0))]
 
             optimizer.zero_grad()
             outputs = model(inputs)
-            
-            # MixUp loss
             loss = lam * criterion(outputs, targets_a) + (1 - lam) * criterion(outputs, targets_b)
-            
+
             loss.backward()
             optimizer.step()
 
@@ -207,15 +214,15 @@ def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model
 
         scheduler.step()
 
-    time_elapsed = time.time() - since
-
-    print(f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s")
+        time_elapsed = time.time() - since
+        print(f"Epoch {epoch + 1} completed in {time_elapsed:.2f}s")
 
     # Save model
-    file_path = os.path.join("weight", f'genconvit_v2_{time.strftime("%Y_%m_%d_%H_%M_%S")}')
-    torch.save({'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict()}, f"{file_path}.pth")
+    file_path = os.path.join("weight", f'genconvit_v2_{time.strftime("%Y_%m_%d_%H_%M_%S")}.pth')
+    torch.save({'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict()}, file_path)
 
-    print("Done.")
+    print("Training Complete!")
+
 
 def test(model, dataloaders, dataset_sizes, mod, weight):
     print("\nRunning test...\n")
