@@ -11,8 +11,8 @@ from albumentations import (
     ShiftScaleRotate,
     HueSaturationValue,
     GaussNoise,
-    IAASharpen,
-    IAAEmboss,
+    Sharpen,
+    Emboss,
     RandomBrightnessContrast,
     OneOf,
     Compose,
@@ -38,8 +38,8 @@ def strong_aug(p=0.5):
             OneOf(
                 [
                     CLAHE(clip_limit=2),
-                    IAASharpen(),
-                    IAAEmboss(),
+                    Sharpen(),
+                    Emboss(),
                     RandomBrightnessContrast(),
                 ],
                 p=0.2,
@@ -193,7 +193,7 @@ def load_checkpoint(model, optimizer, filename=None):
 #     )
 
 
-# ## 💡 Albumentations Wrapper for PyTorch ###
+# ## ]💡 Albumentations Wrapper for PyTorch ###
 # class Aug(object):
 #     """Wrapper class to apply Albumentations to PIL images."""
 #     def __call__(self, img):
