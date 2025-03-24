@@ -224,36 +224,58 @@ def train_model(
 #     print("Training Complete!")
 
 
+import torch
+import numpy as np
+from torch.cuda.amp import autocast
+
 def test(model, dataloaders, dataset_sizes, mod, weight):
     print("\nRunning test...\n")
+    
+    # Clear cache before testing
+    torch.cuda.empty_cache()
+
     model.eval()
+
+    # Load the checkpoint and weights
     checkpoint = torch.load(weight, map_location="cpu")
     model.load_state_dict(checkpoint["state_dict"])
-    _ = model.eval()
+    model.to(device)
 
-    Sum = 0
-    counter = 0
-    for inputs, labels in dataloaders["test"]:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-        if mod == "ed":
-            output = model(inputs).to(device).float()
-        else:
-            output = model(inputs)[0].to(device).float()
+    total_correct = 0
+    total_samples = 0
 
-        _, prediction = torch.max(output, 1)
+    with torch.no_grad():
+        with autocast():  # Use mixed precision
+            for batch_idx, (inputs, labels) in enumerate(dataloaders["test"]):
+                inputs, labels = inputs.to(device), labels.to(device)
 
-        pred_label = labels[prediction]
-        pred_label = pred_label.detach().cpu().numpy()
-        main_label = labels.detach().cpu().numpy()
-        bool_list = list(map(lambda x, y: x == y, pred_label, main_label))
-        Sum += sum(np.array(bool_list) * 1)
-        counter += 1
-        print(f"Pediction: {Sum}/{len(inputs)*counter}")
+                # Inference with or without encoder-decoder mode
+                if mod == "ed":
+                    output = model(inputs).to(device).float()
+                else:
+                    output, _, _ = model(inputs)  # Assuming model returns (output, recons, kl_div)
+                    output = output.to(device).float()
 
-    print(
-        f'Prediction: {Sum}/{dataset_sizes["test"]} {(Sum / dataset_sizes["test"]) * 100:.2f}%'
-    )
+                # Get predictions
+                _, predictions = torch.max(output, 1)
+
+                # Compare predictions with labels
+                correct = (predictions == labels).sum().item()
+                total_correct += correct
+                total_samples += labels.size(0)
+
+                # Display progress every 10 batches
+                if batch_idx % 10 == 0:
+                    accuracy = (total_correct / total_samples) * 100
+                    print(f"Batch {batch_idx}/{len(dataloaders['test'])} - Accuracy: {accuracy:.2f}%")
+
+    # Final accuracy calculation
+    final_accuracy = (total_correct / dataset_sizes["test"]) * 100
+    print(f'\nFinal Accuracy: {total_correct}/{dataset_sizes["test"]} ({final_accuracy:.2f}%)\n')
+
+    # Free memory manually after testing
+    del inputs, labels, output, predictions
+    torch.cuda.empty_cache()
 
 
 def gen_parser():
