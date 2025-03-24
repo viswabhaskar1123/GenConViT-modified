@@ -1,130 +1,3 @@
-# import sys, os
-# import numpy as np
-# import torch
-# from torch import nn
-# import torch.optim as optim
-# from torch.optim import lr_scheduler
-# import time
-# from time import perf_counter
-# import pickle
-# from model.config import load_config
-# from model.genconvit_ed import GenConViTED
-# from model.genconvit_vae import GenConViTVAE
-# from dataset.loader import load_data, load_checkpoint
-# import optparse
-
-# config = load_config()
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-# def load_pretrained(pretrained_model_filename):
-#     assert os.path.isfile(
-#         pretrained_model_filename
-#     ), "Saved model file does not exist. Exiting."
-
-#     model, optimizer, start_epoch, min_loss = load_checkpoint(
-#         model, optimizer, filename=pretrained_model_filename
-#     )
-#     # now individually transfer the optimizer parts...
-#     for state in optimizer.state.values():
-#         for k, v in state.items():
-#             if isinstance(v, torch.Tensor):
-#                 state[k] = v.to(device)
-#     return model, optimizer, start_epoch, min_loss
-
-
-# def train_model(
-#     dir_path, mod, num_epochs, pretrained_model_filename, test_model, batch_size
-# ):
-#     print("Loading data...")
-#     dataloaders, dataset_sizes = load_data(dir_path, batch_size)
-#     print("Done.")
-
-#     if mod == "ed":
-#         from train.train_ed import train, valid
-#         model = GenConViTED(config)
-#     else:
-#         from train.train_vae import train, valid
-#         model = GenConViTVAE(config)
-
-#     optimizer = optim.Adam(
-#         model.parameters(),
-#         lr=float(config["learning_rate"]),
-#         weight_decay=float(config["weight_decay"]),
-#     )
-#     criterion = nn.CrossEntropyLoss()
-#     criterion.to(device)
-#     mse = nn.MSELoss()
-#     min_val_loss = int(config["min_val_loss"])
-#     scheduler = lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.1)
-
-#     if pretrained_model_filename:
-#         model, optimizer, start_epoch, min_loss = load_pretrained(
-#             pretrained_model_filename
-#         )
-
-#     model.to(device)
-#     torch.manual_seed(1)
-#     train_loss, train_acc, valid_loss, valid_acc = [], [], [], []
-#     since = time.time()
-
-#     for epoch in range(0, num_epochs):
-#         train_loss, train_acc, epoch_loss = train(
-#             model,
-#             device,
-#             dataloaders["train"],
-#             criterion,
-#             optimizer,
-#             epoch,
-#             train_loss,
-#             train_acc,
-#             mse,
-#         )
-#         valid_loss, valid_acc = valid(
-#             model,
-#             device,
-#             dataloaders["validation"],
-#             criterion,
-#             epoch,
-#             valid_loss,
-#             valid_acc,
-#             mse,
-#         )
-#         scheduler.step()
-
-#     time_elapsed = time.time() - since
-
-#     print(
-#         "Training complete in {:.0f}m {:.0f}s".format(
-#             time_elapsed // 60, time_elapsed % 60
-#         )
-#     )
-
-#     print("\nSaving model...\n")
-
-#     file_path = os.path.join(
-#         "weight",
-#         f'genconvit_{mod}_{time.strftime("%b_%d_%Y_%H_%M_%S", time.localtime())}',
-#     )
-
-#     with open(f"{file_path}.pkl", "wb") as f:
-#         pickle.dump([train_loss, train_acc, valid_loss, valid_acc], f)
-
-#     state = {
-#         "epoch": num_epochs + 1,
-#         "state_dict": model.state_dict(),
-#         "optimizer": optimizer.state_dict(),
-#         "min_loss": epoch_loss,
-#     }
-
-#     weight = f"{file_path}.pth"
-#     torch.save(state, weight)
-
-#     print("Done.")
-
-#     if test_model:
-#         test(model, dataloaders, dataset_sizes, mod, weight)
-
 import sys, os
 import numpy as np
 import torch
@@ -135,7 +8,8 @@ import time
 from time import perf_counter
 import pickle
 from model.config import load_config
-from model.genconvit_v2 import GenConViTV2  # Updated model import
+from model.genconvit_ed import GenConViTED
+from model.genconvit_vae import GenConViTVAE
 from dataset.loader import load_data, load_checkpoint
 import optparse
 
@@ -144,10 +18,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def load_pretrained(pretrained_model_filename):
-    assert os.path.isfile(pretrained_model_filename), "Model file not found."
-    model, optimizer, start_epoch, min_loss = load_checkpoint(model, optimizer, filename=pretrained_model_filename)
+    assert os.path.isfile(
+        pretrained_model_filename
+    ), "Saved model file does not exist. Exiting."
 
-    # Transfer optimizer to GPU
+    model, optimizer, start_epoch, min_loss = load_checkpoint(
+        model, optimizer, filename=pretrained_model_filename
+    )
+    # now individually transfer the optimizer parts...
     for state in optimizer.state.values():
         for k, v in state.items():
             if isinstance(v, torch.Tensor):
@@ -155,73 +33,195 @@ def load_pretrained(pretrained_model_filename):
     return model, optimizer, start_epoch, min_loss
 
 
-
-# Mixed precision scaler
-scaler = torch.cuda.amp.GradScaler()
-
-def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model, batch_size):
+def train_model(
+    dir_path, mod, num_epochs, pretrained_model_filename, test_model, batch_size
+):
     print("Loading data...")
     dataloaders, dataset_sizes = load_data(dir_path, batch_size)
     print("Done.")
 
-    model = GenConViTV2(config).to(device)  # Use updated model
+    if mod == "ed":
+        from train.train_ed import train, valid
+        model = GenConViTED(config)
+    else:
+        from train.train_vae import train, valid
+        model = GenConViTVAE(config)
 
-    # Improved optimizer with Lookahead and Ranger
-    base_optimizer = optim.AdamW(model.parameters(), lr=2e-4, weight_decay=1e-4)
-    optimizer = optim.Ranger(base_optimizer, k=5, alpha=0.5)
-
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=float(config["learning_rate"]),
+        weight_decay=float(config["weight_decay"]),
+    )
     criterion = nn.CrossEntropyLoss()
-    focal_loss = nn.CrossEntropyLoss(weight=torch.tensor([0.75, 1.25]).to(device))
-
+    criterion.to(device)
     mse = nn.MSELoss()
     min_val_loss = int(config["min_val_loss"])
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
-
-    criterion = nn.CrossEntropyLoss()
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.1)
 
     if pretrained_model_filename:
-        model, optimizer, start_epoch, min_loss = load_pretrained(pretrained_model_filename)
+        model, optimizer, start_epoch, min_loss = load_pretrained(
+            pretrained_model_filename
+        )
 
     model.to(device)
     torch.manual_seed(1)
-
     train_loss, train_acc, valid_loss, valid_acc = [], [], [], []
-
     since = time.time()
 
     for epoch in range(0, num_epochs):
-        print(f"Epoch {epoch + 1}/{num_epochs}")
-
-        # Train phase
-        model.train()
-        running_loss, running_corrects = 0.0, 0
-
-        for inputs, labels in dataloaders["train"]:
-            inputs, labels = inputs.to(device), labels.to(device)
-
-            # MixUp Augmentation
-            lam = np.random.beta(0.4, 0.4)
-            inputs, targets_a, targets_b = inputs, labels, labels[torch.randperm(labels.size(0))]
-
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = lam * criterion(outputs, targets_a) + (1 - lam) * criterion(outputs, targets_b)
-
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item() * inputs.size(0)
-
+        train_loss, train_acc, epoch_loss = train(
+            model,
+            device,
+            dataloaders["train"],
+            criterion,
+            optimizer,
+            epoch,
+            train_loss,
+            train_acc,
+            mse,
+        )
+        valid_loss, valid_acc = valid(
+            model,
+            device,
+            dataloaders["validation"],
+            criterion,
+            epoch,
+            valid_loss,
+            valid_acc,
+            mse,
+        )
         scheduler.step()
 
-        time_elapsed = time.time() - since
-        print(f"Epoch {epoch + 1} completed in {time_elapsed:.2f}s")
+    time_elapsed = time.time() - since
 
-    # Save model
-    file_path = os.path.join("weight", f'genconvit_v2_{time.strftime("%Y_%m_%d_%H_%M_%S")}.pth')
-    torch.save({'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict()}, file_path)
+    print(
+        "Training complete in {:.0f}m {:.0f}s".format(
+            time_elapsed // 60, time_elapsed % 60
+        )
+    )
 
-    print("Training Complete!")
+    print("\nSaving model...\n")
+
+    file_path = os.path.join(
+        "weight",
+        f'genconvit_{mod}_{time.strftime("%b_%d_%Y_%H_%M_%S", time.localtime())}',
+    )
+
+    with open(f"{file_path}.pkl", "wb") as f:
+        pickle.dump([train_loss, train_acc, valid_loss, valid_acc], f)
+
+    state = {
+        "epoch": num_epochs + 1,
+        "state_dict": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "min_loss": epoch_loss,
+    }
+
+    weight = f"{file_path}.pth"
+    torch.save(state, weight)
+
+    print("Done.")
+
+    if test_model:
+        test(model, dataloaders, dataset_sizes, mod, weight)
+
+# import sys, os
+# import numpy as np
+# import torch
+# from torch import nn
+# import torch.optim as optim
+# from torch.optim import lr_scheduler
+# import time
+# from time import perf_counter
+# import pickle
+# from model.config import load_config
+# from model.genconvit_v2 import GenConViTV2  # Updated model import
+# from dataset.loader import load_data, load_checkpoint
+# import optparse
+
+# config = load_config()
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+# def load_pretrained(pretrained_model_filename):
+#     assert os.path.isfile(pretrained_model_filename), "Model file not found."
+#     model, optimizer, start_epoch, min_loss = load_checkpoint(model, optimizer, filename=pretrained_model_filename)
+
+#     # Transfer optimizer to GPU
+#     for state in optimizer.state.values():
+#         for k, v in state.items():
+#             if isinstance(v, torch.Tensor):
+#                 state[k] = v.to(device)
+#     return model, optimizer, start_epoch, min_loss
+
+
+
+# # Mixed precision scaler
+# scaler = torch.cuda.amp.GradScaler()
+
+# def train_model(dir_path, mod, num_epochs, pretrained_model_filename, test_model, batch_size):
+#     print("Loading data...")
+#     dataloaders, dataset_sizes = load_data(dir_path, batch_size)
+#     print("Done.")
+
+#     model = GenConViTV2(config).to(device)  # Use updated model
+
+#     # Improved optimizer with Lookahead and Ranger
+#     base_optimizer = optim.AdamW(model.parameters(), lr=2e-4, weight_decay=1e-4)
+#     optimizer = optim.Ranger(base_optimizer, k=5, alpha=0.5)
+
+#     criterion = nn.CrossEntropyLoss()
+#     focal_loss = nn.CrossEntropyLoss(weight=torch.tensor([0.75, 1.25]).to(device))
+
+#     mse = nn.MSELoss()
+#     min_val_loss = int(config["min_val_loss"])
+#     scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+
+#     criterion = nn.CrossEntropyLoss()
+
+#     if pretrained_model_filename:
+#         model, optimizer, start_epoch, min_loss = load_pretrained(pretrained_model_filename)
+
+#     model.to(device)
+#     torch.manual_seed(1)
+
+#     train_loss, train_acc, valid_loss, valid_acc = [], [], [], []
+
+#     since = time.time()
+
+#     for epoch in range(0, num_epochs):
+#         print(f"Epoch {epoch + 1}/{num_epochs}")
+
+#         # Train phase
+#         model.train()
+#         running_loss, running_corrects = 0.0, 0
+
+#         for inputs, labels in dataloaders["train"]:
+#             inputs, labels = inputs.to(device), labels.to(device)
+
+#             # MixUp Augmentation
+#             lam = np.random.beta(0.4, 0.4)
+#             inputs, targets_a, targets_b = inputs, labels, labels[torch.randperm(labels.size(0))]
+
+#             optimizer.zero_grad()
+#             outputs = model(inputs)
+#             loss = lam * criterion(outputs, targets_a) + (1 - lam) * criterion(outputs, targets_b)
+
+#             loss.backward()
+#             optimizer.step()
+
+#             running_loss += loss.item() * inputs.size(0)
+
+#         scheduler.step()
+
+#         time_elapsed = time.time() - since
+#         print(f"Epoch {epoch + 1} completed in {time_elapsed:.2f}s")
+
+#     # Save model
+#     file_path = os.path.join("weight", f'genconvit_v2_{time.strftime("%Y_%m_%d_%H_%M_%S")}.pth')
+#     torch.save({'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict()}, file_path)
+
+#     print("Training Complete!")
 
 
 def test(model, dataloaders, dataset_sizes, mod, weight):
