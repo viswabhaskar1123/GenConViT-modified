@@ -115,39 +115,33 @@
 import torch
 
 
-def train(
-    model,
-    device,
-    train_loader,
-    criterion,
-    optimizer,
-    epoch,
-    train_loss,
-    train_acc,
-    mse,
-):
+from torch.cuda.amp import autocast, GradScaler
+
+scaler = GradScaler()
+
+def train(model, device, train_loader, criterion, optimizer, epoch, train_loss, train_acc, mse):
     model.train()
     curr_loss = 0
     t_pred = 0
 
     for batch_idx, (images, targets) in enumerate(train_loader):
         images, targets = images.to(device), targets.to(device)
+
         optimizer.zero_grad()
 
-        # Unpack the outputs correctly
-        output, recons, kl_div = model(images)  # Extract KL divergence separately
+        # Enable mixed precision
+        with autocast():
+            output, recons, kl_div = model(images)
+            loss_m = criterion(output, targets)
+            vae = mse(recons, images)
+            loss = loss_m + vae + kl_div
 
-        loss_m = criterion(output, targets)
-        vae = mse(recons, images)
-        
-        # Include KL divergence in the total loss
-        loss = loss_m + vae + kl_div
-
-        loss.backward()
-        optimizer.step()
+        # Scale gradients and backward pass
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         curr_loss += loss.item()
-        
         _, preds = torch.max(output, 1)
         t_pred += torch.sum(preds == targets.data).item()
 
@@ -158,14 +152,8 @@ def train(
                 f"VAE Loss: {vae.item():.6f} KL Loss: {kl_div.item():.6f}"
             )
 
-            train_loss.append(loss.item() / len(images))
-            train_acc.append(preds.sum().item() / len(images))
-
     epoch_loss = curr_loss / len(train_loader.dataset)
     epoch_acc = t_pred / len(train_loader.dataset)
-
-    train_loss.append(epoch_loss)
-    train_acc.append(epoch_acc)
 
     print(
         f"\nTrain set: Average loss: {epoch_loss:.4f}, Accuracy: {t_pred}/{len(train_loader.dataset)} "
@@ -173,6 +161,7 @@ def train(
     )
 
     return train_loss, train_acc, epoch_loss
+
 
 
 def valid(model, device, test_loader, criterion, epoch, valid_loss, valid_acc, mse):
