@@ -101,29 +101,29 @@ def train_model(
     )
 
     print("\nSaving model...\n")
-    # Define the save path in Google Drive
-    drive_path = "/content/drive/My Drive/GenConViT_Models"
-    os.makedirs(drive_path, exist_ok=True)
+    # Define the save path in Google Drive!1111111
+    # drive_path = "/content/drive/My Drive/GenConViT_Models"
+    # os.makedirs(drive_path, exist_ok=True)
     
-    file_name = f'genconvit_{mod}_{time.strftime("%b_%d_%Y_%H_%M_%S", time.localtime())}'
-    file_path = os.path.join(drive_path, file_name)
+    # file_name = f'genconvit_{mod}_{time.strftime("%b_%d_%Y_%H_%M_%S", time.localtime())}'
+    # file_path = os.path.join(drive_path, file_name)
     
-    # Save training history
-    with open(f"{file_path}.pkl", "wb") as f:
-        pickle.dump([train_loss, train_acc, valid_loss, valid_acc], f)
+    # # Save training history
+    # with open(f"{file_path}.pkl", "wb") as f:
+    #     pickle.dump([train_loss, train_acc, valid_loss, valid_acc], f)
     
-    # Save model state
-    state = {
-        "epoch": num_epochs + 1,
-        "state_dict": model.state_dict(),
-        "optimizer": optimizer.state_dict(),
-        "min_loss": epoch_loss,
-    }
+    # # Save model state
+    # state = {
+    #     "epoch": num_epochs + 1,
+    #     "state_dict": model.state_dict(),
+    #     "optimizer": optimizer.state_dict(),
+    #     "min_loss": epoch_loss,
+    # }
     
-    weight_path = f"{file_path}.pth"
-    torch.save(state, weight_path)
+    # weight_path = f"{file_path}.pth"
+    # torch.save(state, weight_path)
     
-    print(f"✅ Model saved successfully to: {weight_path}")
+    # print(f"✅ Model saved successfully to: {weight_path}")1111111
     file_path = os.path.join(
         "weight",
         f'genconvit_{mod}_{time.strftime("%b_%d_%Y_%H_%M_%S", time.localtime())}',
@@ -249,7 +249,55 @@ def train_model(
 import torch
 import numpy as np
 from torch.cuda.amp import autocast
+from sklearn.metrics import precision_score, recall_score, f1_score
+# def test(model, dataloaders, dataset_sizes, mod, weight):
+#     print("\nRunning test...\n")
+    
+#     # Clear cache before testing
+#     torch.cuda.empty_cache()
 
+#     model.eval()
+
+#     # Load the checkpoint and weights
+#     checkpoint = torch.load(weight, map_location="cpu")
+#     model.load_state_dict(checkpoint["state_dict"])
+#     model.to(device)
+
+#     total_correct = 0
+#     total_samples = 0
+
+#     with torch.no_grad():
+#         with autocast():  # Use mixed precision
+#             for batch_idx, (inputs, labels) in enumerate(dataloaders["test"]):
+#                 inputs, labels = inputs.to(device), labels.to(device)
+
+#                 # Inference with or without encoder-decoder mode
+#                 if mod == "ed":
+#                     output = model(inputs).to(device).float()
+#                 else:
+#                     output, _, _ = model(inputs)  # Assuming model returns (output, recons, kl_div)
+#                     output = output.to(device).float()
+
+#                 # Get predictions
+#                 _, predictions = torch.max(output, 1)
+
+#                 # Compare predictions with labels
+#                 correct = (predictions == labels).sum().item()
+#                 total_correct += correct
+#                 total_samples += labels.size(0)
+
+#                 # Display progress every 10 batches
+#                 if batch_idx % 10 == 0:
+#                     accuracy = (total_correct / total_samples) * 100
+#                     print(f"Batch {batch_idx}/{len(dataloaders['test'])} - Accuracy: {accuracy:.2f}%")
+
+#     # Final accuracy calculation
+#     final_accuracy = (total_correct / dataset_sizes["test"]) * 100
+#     print(f'\nFinal Accuracy: {total_correct}/{dataset_sizes["test"]} ({final_accuracy:.2f}%)\n')
+
+#     # Free memory manually after testing
+#     del inputs, labels, output, predictions
+#     torch.cuda.empty_cache()
 def test(model, dataloaders, dataset_sizes, mod, weight):
     print("\nRunning test...\n")
     
@@ -265,6 +313,8 @@ def test(model, dataloaders, dataset_sizes, mod, weight):
 
     total_correct = 0
     total_samples = 0
+    all_predictions = []
+    all_labels = []
 
     with torch.no_grad():
         with autocast():  # Use mixed precision
@@ -286,6 +336,10 @@ def test(model, dataloaders, dataset_sizes, mod, weight):
                 total_correct += correct
                 total_samples += labels.size(0)
 
+                # Collect predictions and labels for metrics calculation
+                all_predictions.extend(predictions.cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+
                 # Display progress every 10 batches
                 if batch_idx % 10 == 0:
                     accuracy = (total_correct / total_samples) * 100
@@ -294,6 +348,15 @@ def test(model, dataloaders, dataset_sizes, mod, weight):
     # Final accuracy calculation
     final_accuracy = (total_correct / dataset_sizes["test"]) * 100
     print(f'\nFinal Accuracy: {total_correct}/{dataset_sizes["test"]} ({final_accuracy:.2f}%)\n')
+
+    # Calculate Precision, Recall, and F1 score
+    precision = precision_score(all_labels, all_predictions, average='weighted')
+    recall = recall_score(all_labels, all_predictions, average='weighted')
+    f1 = f1_score(all_labels, all_predictions, average='weighted')
+
+    print(f"Precision: {precision:.2f}")
+    print(f"Recall: {recall:.2f}")
+    print(f"F1 Score: {f1:.2f}")
 
     # Free memory manually after testing
     del inputs, labels, output, predictions
