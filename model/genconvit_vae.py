@@ -104,8 +104,10 @@ class GenConViTVAE(nn.Module):
         self.fc2 = nn.Linear(self.num_feature//4, config['num_classes'])
         self.relu = nn.ReLU()
         self.resize = transforms.Resize((224,224), antialias=True)
+        self.resize_output = transforms.Resize((600, 600), antialias=True)
 
     def forward(self, x):
+        x = self.resize_input(x)
         z = self.encoder(x)
         x_hat = self.decoder(z)
 
