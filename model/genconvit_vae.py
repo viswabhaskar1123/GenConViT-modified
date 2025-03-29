@@ -1,3 +1,4 @@
+#original
 # import torch
 # import torch.nn as nn
 # from torchvision import transforms
@@ -114,6 +115,7 @@
 #         x = self.fc2(self.relu(self.fc(self.relu(x))))
         
 #         return x, self.resize(x_hat)
+#modified
 import torch
 import torch.nn as nn
 from torchvision import transforms
