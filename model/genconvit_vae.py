@@ -107,7 +107,7 @@ class GenConViTVAE(nn.Module):
         self.resize_output = transforms.Resize((600, 600), antialias=True)
 
     def forward(self, x):
-        x = self.resize_input(x)
+        x = self.resize(x)
         z = self.encoder(x)
         x_hat = self.decoder(z)
 
