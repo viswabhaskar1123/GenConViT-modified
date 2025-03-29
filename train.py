@@ -13,6 +13,7 @@ from model.genconvit_ed import GenConViTED
 from model.genconvit_vae import GenConViTVAE
 from dataset.loader import load_data, load_checkpoint
 import optparse
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 config = load_config()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -127,7 +128,7 @@ def train_model(
         test(model, dataloaders, dataset_sizes, mod, weight)
 
 
-def test(model, dataloaders, dataset_sizes, mod, weight):
+def test(model, dataloaders, dataset_sizes, mod, weight, device):
     print("\nRunning test...\n")
     model.eval()
     checkpoint = torch.load(weight, map_location="cpu")
@@ -136,9 +137,13 @@ def test(model, dataloaders, dataset_sizes, mod, weight):
 
     Sum = 0
     counter = 0
+    all_preds = []
+    all_labels = []
+
     for inputs, labels in dataloaders["test"]:
         inputs = inputs.to(device)
         labels = labels.to(device)
+        
         if mod == "ed":
             output = model(inputs).to(device).float()
         else:
@@ -146,18 +151,31 @@ def test(model, dataloaders, dataset_sizes, mod, weight):
 
         _, prediction = torch.max(output, 1)
 
+        # Collect predictions and labels for metrics
+        all_preds.extend(prediction.detach().cpu().numpy())
+        all_labels.extend(labels.detach().cpu().numpy())
+
+        # Calculate correct predictions
         pred_label = labels[prediction]
         pred_label = pred_label.detach().cpu().numpy()
         main_label = labels.detach().cpu().numpy()
         bool_list = list(map(lambda x, y: x == y, pred_label, main_label))
         Sum += sum(np.array(bool_list) * 1)
         counter += 1
-        print(f"Pediction: {Sum}/{len(inputs)*counter}")
+        print(f"Prediction: {Sum}/{len(inputs)*counter}")
 
-    print(
-        f'Prediction: {Sum}/{dataset_sizes["test"]} {(Sum / dataset_sizes["test"]) * 100:.2f}%'
-    )
+    # Calculate precision, recall, and F1 score
+    precision = precision_score(all_labels, all_preds, average='weighted')
+    recall = recall_score(all_labels, all_preds, average='weighted')
+    f1 = f1_score(all_labels, all_preds, average='weighted')
 
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+
+    # Print final accuracy
+    accuracy = (Sum / dataset_sizes["test"]) * 100
+    print(f'Prediction: {Sum}/{dataset_sizes["test"]} ({accuracy:.2f}%)')
 
 def gen_parser():
     parser = optparse.OptionParser("Train GenConViT model.")
