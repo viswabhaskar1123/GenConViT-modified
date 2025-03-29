@@ -22,9 +22,10 @@ import numpy as np
 from PIL import Image
 
 
-def strong_aug(p=0.5):
+def strong_aug(p=0.5, target_size=(224, 224)):  # Adding target_size argument
     return Compose(
         [
+            Resize(target_size[0], target_size[1]),  # Resize all images to 224x224 (default)
             RandomRotate90(p=0.2),
             Transpose(p=0.2),
             HorizontalFlip(p=0.5),
@@ -57,7 +58,7 @@ def augment(aug, image):
 
 class Aug(object):
     def __call__(self, img):
-        aug = strong_aug(p=0.9)
+        aug = strong_aug(p=0.9)  # Use strong_aug with resize
         return Image.fromarray(augment(aug, np.array(img)))
 
 
