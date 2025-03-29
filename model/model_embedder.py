@@ -1,3 +1,4 @@
+#original
 # import torch
 # import torch.nn as nn
 
@@ -42,7 +43,7 @@
 #             x = x[-1]  # last feature if backbone outputs list/tuple of features
 #         x = self.proj(x).flatten(2).transpose(1, 2)
 #         return x
-
+#modified
 import torch
 import torch.nn as nn
 
