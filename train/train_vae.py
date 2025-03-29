@@ -1,3 +1,4 @@
+#original
 # import torch
 
 
@@ -112,9 +113,8 @@
 #     )
 
 #     return valid_loss, valid_acc
+#modified
 import torch
-
-
 from torch.cuda.amp import autocast, GradScaler
 
 scaler = GradScaler()
