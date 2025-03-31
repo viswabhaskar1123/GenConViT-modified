@@ -103,7 +103,29 @@ def train_model(
     )
 
     print("\nSaving model...\n")
-
+    # Define the save path in Google Drive
+    drive_path = "/content/drive/My Drive/GenConViT_Models"
+    os.makedirs(drive_path, exist_ok=True)
+    
+    file_name = f'genconvit_{mod}_{time.strftime("%b_%d_%Y_%H_%M_%S", time.localtime())}'
+    file_path = os.path.join(drive_path, file_name)
+    
+    # Save training history
+    with open(f"{file_path}.pkl", "wb") as f:
+        pickle.dump([train_loss, train_acc, valid_loss, valid_acc], f)
+    
+    # Save model state
+    state = {
+        "epoch": num_epochs + 1,
+        "state_dict": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "min_loss": epoch_loss,
+    }
+    
+    weight_path = f"{file_path}.pth"
+    torch.save(state, weight_path)
+    
+    print(f"✅ Model saved successfully to: {weight_path}")
     file_path = os.path.join(
         "weight",
         f'genconvit_{mod}_{time.strftime("%b_%d_%Y_%H_%M_%S", time.localtime())}',
