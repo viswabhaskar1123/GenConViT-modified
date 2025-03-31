@@ -128,7 +128,7 @@ def train_model(
         test(model, dataloaders, dataset_sizes, mod, weight)
 
 
-def test(model, dataloaders, dataset_sizes, mod, weight, device):
+def test(model, dataloaders, dataset_sizes, mod, weight):
     print("\nRunning test...\n")
     model.eval()
     checkpoint = torch.load(weight, map_location="cpu")
