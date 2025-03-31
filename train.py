@@ -152,6 +152,7 @@ def train_model(
 
 def test(model, dataloaders, dataset_sizes, mod, weight):
     print("\nRunning test...\n")
+    torch.cuda.empty_cache()
     model.eval()
     checkpoint = torch.load(weight, map_location="cpu")
     model.load_state_dict(checkpoint["state_dict"])
