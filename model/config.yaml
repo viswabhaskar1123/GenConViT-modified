@@ -13,9 +13,23 @@
 # min_val_loss: 10000
 
 #original
+# model:
+#   backbone: convnext_tiny
+#   embedder: swin_tiny_patch4_window7_224
+#   latent_dims: 12544
+
+# batch_size: 32
+# epoch: 1
+# learning_rate: 0.0001
+# weight_decay: 0.0001
+# num_classes: 2
+# img_size: 224
+# min_val_loss: 10000
+
+#modified-2.0
 model:
-  backbone: convnext_tiny
-  embedder: swin_tiny_patch4_window7_224
+  backbone: convnextv2_tiny
+  embedder: vit_base_patch16_224_mae
   latent_dims: 12544
 
 batch_size: 32
@@ -25,3 +39,4 @@ weight_decay: 0.0001
 num_classes: 2
 img_size: 224
 min_val_loss: 10000
+contrastive_weight: 0.2
