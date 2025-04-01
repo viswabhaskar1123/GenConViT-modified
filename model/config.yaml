@@ -29,7 +29,7 @@
 #modified-2.0
 model:
   backbone: convnextv2_tiny
-  embedder: vit_base_patch16_224_mae
+  embedder: vit_base_patch16_224.mae
   latent_dims: 12544
 
 batch_size: 32
